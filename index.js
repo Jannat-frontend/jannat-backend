@@ -2,13 +2,16 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 require('dotenv').config();
+const questionRoutes = require('./routes/questionRoutes');
+
+
 
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
-const questionRoutes = require('./routes/questionRoutes');
+
 const paymentRoutes = require('./routes/paymentRoutes');
 const leaderboardRoutes = require('./routes/leaderboardRoutes');
-const uploadTxtRoutes = require('./routes/uploadTxt'); // ✅ for question upload
+
 
 const app = express();
 
@@ -30,10 +33,14 @@ app.use(express.json());
 // ✅ API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+
 app.use('/api/questions', questionRoutes);
 app.use('/api/payment', paymentRoutes);
+
+
 app.use('/api/leaderboard', leaderboardRoutes);
-app.use('/api/upload-txt', uploadTxtRoutes); // ✅ route to handle .txt upload
+
+
 
 // ✅ MongoDB connection
 mongoose.connect(process.env.MONGO_URI)

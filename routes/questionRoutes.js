@@ -2,60 +2,38 @@ const express = require('express');
 const router = express.Router();
 const Question = require('../models/Question');
 
-// POST /api/questions/add - Upload a new quiz question (Admin only)
-router.post('/add', async (req, res) => {
-  console.log("POST /api/questions/add hit");
-  const { questionText, options, correctOption, difficulty } = req.body;
-
-  // ✅ Basic Validation
-  if (
-    !questionText ||
-    !options ||
-    !Array.isArray(options) ||
-    options.length < 2 ||
-    !correctOption ||
-    !difficulty
-  ) {
-    return res.status(400).json({
-      message: 'Please provide all required fields: questionText, options (min 2), correctOption, difficulty'
-    });
-  }
-
+// ✅ Bulk insert via JSON (textarea upload)
+router.post('/bulk', async (req, res) => {
   try {
-    const newQuestion = new Question({ questionText, options, correctOption, difficulty });
-    await newQuestion.save();
-    res.status(201).json({ message: 'Question added successfully' });
+    const { questions } = req.body;
+
+    if (!Array.isArray(questions)) {
+      return res.status(400).json({ success: false, message: "Invalid format: expected an array" });
+    }
+
+    const formatted = questions.map(q => ({
+      question: q.question,
+      options: q.options,
+      answer: q.answer,
+      difficulty: q.difficulty?.toLowerCase() === 'hard' ? 'hard' : 'easy'
+    }));
+
+    await Question.insertMany(formatted);
+    res.json({ success: true, count: formatted.length });
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error("Bulk upload error:", err);
+    res.status(500).json({ success: false, message: "Upload failed" });
   }
 });
 
-// GET /api/questions/fetch - Get 3 easy + 2 hard questions (without correctOption)
+// ✅ Fetch for quiz screen
 router.get('/fetch', async (req, res) => {
   try {
-    const easyQuestions = await Question.aggregate([
-      { $match: { difficulty: 'easy' } },
-      { $sample: { size: 3 } }
-    ]);
-
-    const hardQuestions = await Question.aggregate([
-      { $match: { difficulty: 'hard' } },
-      { $sample: { size: 2 } }
-    ]);
-
-    const allQuestions = [...easyQuestions, ...hardQuestions];
-
-    // ✅ Don't send correctOption to frontend
-    const formattedQuestions = allQuestions.map((q) => ({
-      id: q._id,
-      question: q.questionText,
-      options: q.options
-    }));
-
-    res.json({ success: true, questions: formattedQuestions });
+    const questions = await Question.find().limit(5);
+    res.json({ success: true, questions });
   } catch (err) {
-    console.error('Error fetching questions:', err);
-    res.status(500).json({ success: false, message: 'Error fetching questions' });
+    console.error("Fetch error:", err);
+    res.status(500).json({ success: false, message: "Unable to load questions" });
   }
 });
 
